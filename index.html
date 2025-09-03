@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camera Interaction App</title>
     <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-color: #ccc;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+            --border-color: #555;
+            --shadow: 0 2px 5px rgba(0,0,0,0.3);
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+        }
+
         body {
             font-family: sans-serif;
             display: flex;
@@ -12,35 +32,68 @@
             align-items: center;
             gap: 20px;
             padding: 20px;
-            background-color: #f0f0f0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--button-bg);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .theme-toggle:hover {
+            background: var(--button-hover);
+            transform: scale(1.1);
+        }
+
         .controls, .io-areas {
             display: flex;
             gap: 10px;
             align-items: center;
-            background-color: #fff;
+            background-color: var(--card-bg);
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
         }
         .io-areas {
             flex-direction: column;
             align-items: stretch;
         }
-        textarea {
+        textarea, input, select {
             width: 300px;
-            height: 80px;
             padding: 8px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
             font-size: 14px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        textarea {
+            height: 80px;
         }
         #videoFeed {
             width: 480px;
             height: 360px;
-            border: 2px solid #333;
+            border: 2px solid var(--border-color);
             background-color: #000;
             border-radius: 8px;
+            transition: all 0.3s ease;
         }
         #startButton {
             padding: 10px 20px;
@@ -49,6 +102,11 @@
             border: none;
             border-radius: 4px;
             color: white;
+            background-color: var(--button-bg);
+            transition: all 0.3s ease;
+        }
+        #startButton:hover {
+            background-color: var(--button-hover);
         }
         #startButton.start {
             background-color: #28a745; /* Green */
@@ -58,11 +116,7 @@
         }
         label {
             font-weight: bold;
-        }
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
+            color: var(--text-color);
         }
         .hidden {
             display: none;
@@ -70,6 +124,10 @@
     </style>
 </head>
 <body>
+
+    <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">
+        🌙
+    </button>
 
     <h1>Camera Interaction App</h1>
 
@@ -111,6 +169,7 @@
         const responseText = document.getElementById('responseText');
         const intervalSelect = document.getElementById('intervalSelect');
         const startButton = document.getElementById('startButton');
+        const themeToggle = document.getElementById('themeToggle');
 
         instructionText.value = "What do you see?"; // default instruction
 
@@ -259,6 +318,28 @@
                 clearInterval(intervalId);
             }
         });
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.body.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.body.setAttribute('data-theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Theme toggle
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // Initialize theme on page load
+        initTheme();
 
     </script>
 </body>
