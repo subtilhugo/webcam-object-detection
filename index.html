@@ -187,6 +187,87 @@
             color: var(--text-color);
             opacity: 0.8;
         }
+
+        .history-container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: var(--shadow);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-timestamp {
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .history-instruction {
+            font-weight: bold;
+            margin: 5px 0;
+            color: var(--text-color);
+        }
+
+        .history-response {
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.9;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .history-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .history-btn.delete {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .history-btn.export {
+            background-color: var(--button-bg);
+            color: white;
+        }
+
+        .history-toggle {
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .history-toggle:hover {
+            background-color: var(--button-hover);
+        }
     </style>
 </head>
 <body>
@@ -226,6 +307,18 @@
         </div>
     </div>
 
+    <button class="history-toggle" id="historyToggle">📝 Show Detection History</button>
+    
+    <div class="history-container hidden" id="historyContainer">
+        <h3>Detection History (Last 10)</h3>
+        <div id="historyList"></div>
+        <div style="margin-top: 10px;">
+            <button class="history-btn export" onclick="exportHistory()">📤 Export JSON</button>
+            <button class="history-btn delete" onclick="clearHistory()">🗑️ Clear All</button>
+        </div>
+    </div>
+    </div>
+
     <div class="progress-container">
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
@@ -263,6 +356,9 @@
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const inferenceTime = document.getElementById('inferenceTime');
+        const historyToggle = document.getElementById('historyToggle');
+        const historyContainer = document.getElementById('historyContainer');
+        const historyList = document.getElementById('historyList');
 
         instructionText.value = "What do you see?"; // default instruction
 
@@ -349,6 +445,9 @@
                 
                 responseText.value = response;
                 updateProgress(100, 'success', `Completed in ${duration}ms`);
+                
+                // Add to history
+                addToHistory(instruction, response);
                 
                 // Reset progress after 2 seconds
                 setTimeout(() => {
@@ -470,6 +569,81 @@
                 instructionPreset.value = '';
             }
         });
+
+        // History management
+        function addToHistory(instruction, response) {
+            const history = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
+            const newEntry = {
+                timestamp: new Date().toISOString(),
+                instruction: instruction,
+                response: response
+            };
+            
+            history.unshift(newEntry);
+            if (history.length > 10) {
+                history.pop();
+            }
+            
+            localStorage.setItem('detectionHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const history = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
+            historyList.innerHTML = '';
+            
+            history.forEach((entry, index) => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-timestamp">${new Date(entry.timestamp).toLocaleString()}</div>
+                    <div class="history-instruction">${entry.instruction}</div>
+                    <div class="history-response">${entry.response}</div>
+                    <div class="history-actions">
+                        <button class="history-btn delete" onclick="deleteHistoryItem(${index})">🗑️</button>
+                    </div>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        function deleteHistoryItem(index) {
+            const history = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
+            history.splice(index, 1);
+            localStorage.setItem('detectionHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        function exportHistory() {
+            const history = localStorage.getItem('detectionHistory') || '[]';
+            const blob = new Blob([history], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'detection_history.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all history?')) {
+                localStorage.removeItem('detectionHistory');
+                updateHistoryDisplay();
+            }
+        }
+
+        // History toggle
+        historyToggle.addEventListener('click', () => {
+            historyContainer.classList.toggle('hidden');
+            historyToggle.textContent = historyContainer.classList.contains('hidden') ? 
+                '📝 Show Detection History' : '📝 Hide Detection History';
+            if (!historyContainer.classList.contains('hidden')) {
+                updateHistoryDisplay();
+            }
+        });
+
+        // Initialize history display
+        updateHistoryDisplay();
 
     </script>
 </body>
