@@ -140,8 +140,19 @@
             <input id="baseURL" name="Instruction" value="http://localhost:8080"></textarea>
         </div>
         <div>
-            <label for="instructionText">Instruction:</label><br>
-            <textarea id="instructionText" style="height: 2em; width: 40em" name="Instruction"></textarea>
+            <label for="instructionPreset">Instruction Preset:</label><br>
+            <select id="instructionPreset" style="width: 40em; margin-bottom: 10px;">
+                <option value="">-- Select a preset or write custom instruction --</option>
+                <option value="Décris cette scène en français">Décris cette scène en français</option>
+                <option value="Liste les objets présents en JSON">Liste les objets présents en JSON</option>
+                <option value="Quel est le sentiment de cette image?">Quel est le sentiment de cette image?</option>
+                <option value="Analyse les couleurs dominantes">Analyse les couleurs dominantes</option>
+                <option value="Détecte les personnes et leurs actions">Détecte les personnes et leurs actions</option>
+            </select>
+        </div>
+        <div>
+            <label for="instructionText">Custom Instruction:</label><br>
+            <textarea id="instructionText" style="height: 2em; width: 40em" name="Instruction" placeholder="Or write your own instruction here..."></textarea>
         </div>
         <div>
             <label for="responseText">Response:</label><br>
@@ -170,6 +181,7 @@
         const intervalSelect = document.getElementById('intervalSelect');
         const startButton = document.getElementById('startButton');
         const themeToggle = document.getElementById('themeToggle');
+        const instructionPreset = document.getElementById('instructionPreset');
 
         instructionText.value = "What do you see?"; // default instruction
 
@@ -340,6 +352,20 @@
 
         // Initialize theme on page load
         initTheme();
+
+        // Instruction preset handling
+        instructionPreset.addEventListener('change', () => {
+            if (instructionPreset.value) {
+                instructionText.value = instructionPreset.value;
+            }
+        });
+
+        // Clear preset when custom instruction is typed
+        instructionText.addEventListener('input', () => {
+            if (instructionText.value !== instructionPreset.value) {
+                instructionPreset.value = '';
+            }
+        });
 
     </script>
 </body>
