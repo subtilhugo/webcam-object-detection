@@ -210,6 +210,47 @@
             display: none;
         }
 
+        #imagePreview {
+            width: 100%;
+            max-width: 480px;
+            max-height: 360px;
+            border: 3px solid #4facfe;
+            border-radius: 15px;
+            background-color: #000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            object-fit: contain;
+        }
+
+        .source-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .source-selector .btn {
+            flex: 0;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .drop-zone {
+            border: 3px dashed #4facfe;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #e3f2fd;
+            border-color: #007bff;
+        }
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -275,7 +316,16 @@
         <div class="main-content">
             <div class="video-section">
                 <video id="videoFeed" autoplay playsinline></video>
+                <img id="imagePreview" class="hidden" alt="Image chargée" />
                 <canvas id="canvas" class="hidden"></canvas>
+                <div class="source-selector">
+                    <button type="button" class="btn btn-secondary" id="btnWebcam" onclick="switchSource('webcam')">Webcam</button>
+                    <button type="button" class="btn btn-primary" id="btnUpload" onclick="switchSource('upload')">Image</button>
+                </div>
+                <div id="dropZone" class="drop-zone hidden" onclick="document.getElementById('fileInput').click()">
+                    Glissez-déposez une image ici<br>ou cliquez pour parcourir
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                </div>
             </div>
 
             <div class="controls-section">
@@ -364,7 +414,7 @@
                 </div>
 
                 <div class="button-group">
-                    <button id="startButton" class="btn btn-primary">Démarrer</button>
+                    <button id="startButton" class="btn btn-primary">Analyser</button>
                     <button id="testButton" class="btn btn-secondary">Tester la connexion</button>
                 </div>
             </div>
@@ -380,6 +430,9 @@
     <script>
         const video = document.getElementById('videoFeed');
         const canvas = document.getElementById('canvas');
+        const imagePreview = document.getElementById('imagePreview');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
         const llamaURL = document.getElementById('llamaURL');
         const llamaModel = document.getElementById('llamaModel');
         const openaiKey = document.getElementById('openaiKey');
@@ -398,6 +451,8 @@
         let intervalId;
         let isProcessing = false;
         let currentModel = 'llama';
+        let inputSource = 'upload';
+        let uploadedImageDataURL = null;
 
         document.querySelectorAll('.model-option').forEach(option => {
             option.addEventListener('click', () => {
@@ -486,7 +541,67 @@
             return data.choices[0].message.content;
         }
 
+        function switchSource(source) {
+            inputSource = source;
+            const btnWebcam = document.getElementById('btnWebcam');
+            const btnUpload = document.getElementById('btnUpload');
+
+            if (source === 'webcam') {
+                btnWebcam.className = 'btn btn-primary';
+                btnUpload.className = 'btn btn-secondary';
+                video.classList.remove('hidden');
+                imagePreview.classList.add('hidden');
+                dropZone.classList.add('hidden');
+                startButton.textContent = 'Démarrer';
+                initCamera();
+            } else {
+                btnWebcam.className = 'btn btn-secondary';
+                btnUpload.className = 'btn btn-primary';
+                video.classList.add('hidden');
+                dropZone.classList.remove('hidden');
+                startButton.textContent = 'Analyser';
+                if (uploadedImageDataURL) {
+                    imagePreview.classList.remove('hidden');
+                }
+            }
+        }
+
+        function handleFileUpload(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedImageDataURL = e.target.result;
+                imagePreview.src = uploadedImageDataURL;
+                imagePreview.classList.remove('hidden');
+                dropZone.classList.add('hidden');
+                updateStatus("Image chargée. Prêt à analyser.", 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleFileUpload(e.target.files[0]);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0]);
+        });
+
         function captureImage() {
+            if (inputSource === 'upload') {
+                return uploadedImageDataURL;
+            }
             if (!stream || !video.videoWidth) {
                 console.warn("Flux vidéo non prêt pour la capture.");
                 return null;
@@ -562,6 +677,21 @@
         }
 
         function handleStart() {
+            if (inputSource === 'upload') {
+                if (!uploadedImageDataURL) {
+                    updateStatus("Aucune image chargée. Veuillez charger une image d'abord.", 'error');
+                    return;
+                }
+                isProcessing = true;
+                startButton.disabled = true;
+                updateStatus("Analyse en cours...", 'info');
+                sendData().then(() => {
+                    isProcessing = false;
+                    startButton.disabled = false;
+                });
+                return;
+            }
+
             if (!stream) {
                 updateStatus("Caméra non disponible. Impossible de démarrer.", 'error');
                 alert("Caméra non disponible. Veuillez accorder les permissions d'abord.");
@@ -618,15 +748,18 @@
                 });
                 video.srcObject = stream;
                 updateStatus("Accès à la caméra accordé. Prêt à démarrer.", 'success');
+                switchSource('webcam');
             } catch (err) {
                 console.error("Erreur d'accès à la caméra:", err);
-                updateStatus(`Erreur d'accès à la caméra: ${err.name} - ${err.message}`, 'error');
-                alert(`Erreur d'accès à la caméra: ${err.name}. Assurez-vous d'avoir accordé les permissions et d'être sur HTTPS ou localhost.`);
+                updateStatus("Caméra non disponible. Utilisez le mode Image pour charger un fichier.", 'info');
+                switchSource('upload');
             }
         }
 
         startButton.addEventListener('click', () => {
-            if (isProcessing) {
+            if (inputSource === 'upload') {
+                handleStart();
+            } else if (isProcessing) {
                 handleStop();
             } else {
                 handleStart();
